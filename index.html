@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MetaLingo — Read the Ancient World</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Egyptian+Hieroglyphs&family=Noto+Sans+Runic&family=Noto+Sans+Cuneiform&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#15131d; --panel:#1d1a28; --card:#241f33; --card2:#2c2640; --line:#3a3350;
+    --gold:#e0b552; --gold2:#c9992f; --text:#ece3d0; --muted:#a49bb8;
+    --correct:#7bc47f; --correct-dk:#2f7a44; --wrong:#e07a5f; --wrong-dk:#b24a34; --lapis:#6a9bd8;
+    --display:'Cinzel', Georgia, serif; --body:'Spectral', Georgia, serif;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body{ font-family:var(--body); color:var(--text); background:#0f0d16; min-height:100vh; display:flex; justify-content:center; }
+  .glyph{ font-family:'Noto Sans Egyptian Hieroglyphs','Segoe UI Historic',sans-serif; }
+  .rune{ font-family:'Noto Sans Runic','Segoe UI Historic',sans-serif; }
+  .cune{ font-family:'Noto Sans Cuneiform','Segoe UI Historic',sans-serif; }
+  .greek{ font-family:var(--body); }
+  #app{
+    width:100%; max-width:480px; min-height:100vh; position:relative;
+    background:radial-gradient(120% 60% at 50% -10%, #241f38 0%, var(--bg) 55%);
+    display:flex; flex-direction:column;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar{ display:flex; align-items:center; gap:16px; padding:16px 20px; border-bottom:1px solid var(--line); }
+  .stat{ display:flex; align-items:center; gap:6px; font-weight:700; font-size:18px; font-family:var(--body); }
+  .stat .icon{ font-size:20px; }
+  .streak,.xp{ color:var(--gold); }
+  .backbtn{ background:none; border:none; font-size:26px; font-weight:700; color:var(--muted); cursor:pointer; line-height:1; }
+  .prog{ margin-left:auto; color:var(--muted); font-weight:600; font-size:15px; }
+
+  /* ---------- Buttons ---------- */
+  .btn-gold{
+    display:block; width:100%; border:none; cursor:pointer; font-family:var(--display);
+    font-weight:700; font-size:15px; letter-spacing:1.5px; text-transform:uppercase;
+    padding:15px; border-radius:12px; color:#1a1530;
+    background:linear-gradient(150deg,#eec468,#c9992f); box-shadow:0 4px 18px rgba(224,181,82,.25);
+  }
+  .btn-gold:active{ transform:translateY(1px); }
+  .btn-gold:disabled{ background:#2c2640; color:#6b6480; box-shadow:none; cursor:default; }
+  .btn-outline{
+    display:block; width:100%; border:1px solid var(--line); cursor:pointer; font-family:var(--display);
+    font-weight:700; font-size:14px; letter-spacing:1.5px; text-transform:uppercase;
+    padding:14px; border-radius:12px; color:var(--gold); background:transparent;
+  }
+  .btn-outline:active{ transform:translateY(1px); }
+
+  /* ---------- Access gate ---------- */
+  .gate{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:32px; }
+  .gate-mark{ font-size:66px; color:var(--gold); text-shadow:0 0 30px rgba(224,181,82,.4); margin-bottom:14px; }
+  .wordmark{ font-family:var(--display); font-weight:900; font-size:32px; letter-spacing:6px; color:var(--text); }
+  .gate-tag{ font-style:italic; color:var(--muted); margin:6px 0 30px; font-size:16px; }
+  .gate-box{ width:100%; max-width:320px; }
+  .gate-label{ font-family:var(--display); text-transform:uppercase; letter-spacing:2px; font-size:12px; color:var(--gold); margin-bottom:10px; }
+  .gate-input{
+    width:100%; padding:15px; border-radius:12px; border:1px solid var(--line);
+    background:var(--card); color:var(--text); font-family:var(--body); font-size:17px; text-align:center;
+    letter-spacing:2px; margin-bottom:12px; outline:none;
+  }
+  .gate-input:focus{ border-color:var(--gold); }
+  .gate-err{ color:var(--wrong); font-size:14px; min-height:20px; margin-top:10px; font-style:italic; }
+  .gate-note{ margin-top:26px; color:var(--muted); font-size:12px; letter-spacing:1px; text-transform:uppercase; }
+
+  /* ---------- Course picker ---------- */
+  .picker{ padding:26px 20px 100px; }
+  .brand{ font-family:var(--display); font-weight:900; letter-spacing:4px; font-size:15px; color:var(--gold); margin-bottom:14px; }
+  .picker h1{ font-family:var(--display); font-size:26px; font-weight:700; margin-bottom:4px; }
+  .picker .sub{ color:var(--muted); font-style:italic; margin-bottom:24px; }
+  .course-card{
+    display:flex; align-items:center; gap:16px; width:100%; text-align:left;
+    border:1px solid var(--line); border-radius:16px; background:var(--card);
+    padding:16px; margin-bottom:14px; cursor:pointer; font-family:inherit; color:var(--text);
+    transition:border-color .15s, transform .05s;
+  }
+  .course-card:hover:not(.soon){ border-color:var(--gold); }
+  .course-card:active:not(.soon){ transform:translateY(1px); }
+  .course-card.soon{ opacity:.5; cursor:default; }
+  .course-icon{
+    width:60px; height:60px; border-radius:14px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-size:34px; color:#1a1530;
+    box-shadow:0 0 22px rgba(224,181,82,.15) inset;
+  }
+  .course-body{ flex:1; min-width:0; }
+  .course-body b{ font-family:var(--display); font-size:16px; letter-spacing:.5px; display:block; }
+  .course-body span{ color:var(--muted); font-size:13px; }
+  .course-bar{ height:7px; background:#17141f; border-radius:6px; margin-top:9px; overflow:hidden; border:1px solid var(--line); }
+  .course-bar>div{ height:100%; background:linear-gradient(90deg,#eec468,#c9992f); border-radius:6px; }
+  .pill{ font-family:var(--display); font-size:10px; font-weight:700; letter-spacing:1.5px; color:var(--muted); border:1px solid var(--line); padding:4px 9px; border-radius:20px; }
+
+  /* ---------- Course home ---------- */
+  .home{ padding:20px 20px 110px; }
+  .home h1{ font-family:var(--display); font-size:24px; font-weight:700; margin-bottom:4px; }
+  .home .sub{ color:var(--muted); font-style:italic; margin-bottom:8px; }
+  .unit-h{ display:flex; align-items:center; gap:12px; margin:26px 0 12px; }
+  .unit-h .line{ flex:1; height:1px; background:var(--line); }
+  .unit-h b{ font-family:var(--display); letter-spacing:2px; font-size:12px; color:var(--gold); text-transform:uppercase; white-space:nowrap; }
+  .path{ display:flex; flex-direction:column; gap:12px; }
+  .step{
+    display:flex; align-items:center; gap:14px; width:100%; text-align:left;
+    border:1px solid var(--line); border-radius:16px; background:var(--card); padding:13px 14px;
+    cursor:pointer; font-family:inherit; color:var(--text); transition:border-color .15s, transform .05s;
+  }
+  .step:hover:not(.locked){ border-color:var(--gold); }
+  .step:active:not(.locked){ transform:translateY(1px); }
+  .step.locked{ opacity:.4; cursor:default; }
+  .step .medal{
+    width:52px; height:52px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    font-size:27px; background:var(--card2); color:var(--gold); border:1px solid var(--line);
+  }
+  .step.done .medal{ background:linear-gradient(145deg,#eec468,#c9992f); color:#1a1530; border-color:transparent; }
+  .step .stbody{ flex:1; min-width:0; }
+  .step .stbody b{ font-family:var(--display); font-size:15px; letter-spacing:.5px; display:block; }
+  .step .stbody span{ color:var(--muted); font-size:13px; }
+  .step .stat-icon{ font-size:20px; color:var(--muted); }
+  .step.done .stat-icon{ color:var(--gold); }
+  .review-btn{ margin-top:24px; }
+
+  /* ---------- Lesson ---------- */
+  .lesson{ display:flex; flex-direction:column; flex:1; padding:16px 20px 20px; }
+  .lesson-top{ display:flex; align-items:center; gap:14px; margin-bottom:26px; }
+  .close{ background:none; border:none; font-size:24px; color:var(--muted); cursor:pointer; }
+  .bar{ flex:1; height:14px; background:#17141f; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .bar>div{ height:100%; background:linear-gradient(90deg,#eec468,#c9992f); border-radius:10px; width:0; transition:width .3s; }
+  .q-prompt{ font-family:var(--display); font-size:21px; font-weight:700; margin-bottom:6px; }
+  .q-hint{ color:var(--muted); font-style:italic; margin-bottom:22px; }
+  .big-glyph{ font-size:96px; text-align:center; padding:14px 0 30px; line-height:1; color:var(--gold); text-shadow:0 0 30px rgba(224,181,82,.35); }
+  .options{ display:flex; flex-direction:column; gap:12px; }
+  .options.grid{ display:grid; grid-template-columns:1fr 1fr; }
+  .opt{
+    border:1px solid var(--line); background:var(--card); border-radius:14px; padding:16px;
+    cursor:pointer; font-family:var(--body); font-size:18px; font-weight:600; color:var(--text); text-align:center; transition:border-color .1s,background .1s;
+  }
+  .opt.glyphopt{ font-size:44px; padding:12px; color:var(--gold); }
+  .opt:hover{ border-color:var(--gold); }
+  .opt.selected{ border-color:var(--gold); background:#33294a; }
+  .opt.correct{ border-color:var(--correct); background:rgba(123,196,127,.15); color:var(--correct); }
+  .opt.wrong{ border-color:var(--wrong); background:rgba(224,122,95,.15); color:var(--wrong); }
+  .opt:disabled{ cursor:default; }
+
+  /* ---------- Word builder ---------- */
+  .build-answer{ min-height:70px; border-bottom:2px dashed var(--line); display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:10px 0; margin-bottom:24px; }
+  .build-placeholder{ color:var(--muted); font-style:italic; }
+  .build-bank{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+  .tile{
+    font-size:40px; padding:8px 16px; border:1px solid var(--line); border-radius:12px;
+    background:var(--card); color:var(--gold); cursor:pointer; line-height:1.1; transition:border-color .1s;
+  }
+  .tile:hover:not(:disabled){ border-color:var(--gold); }
+  .tile:disabled{ opacity:.2; cursor:default; }
+  .tile.small{ font-size:32px; padding:6px 12px; }
+
+  .spacer{ flex:1; }
+  .footer{ position:sticky; bottom:0; margin:0 -20px -20px; padding:20px; border-top:1px solid var(--line); background:var(--panel); }
+  .footer.correct{ background:rgba(47,122,68,.22); border-color:var(--correct-dk); }
+  .footer.wrong{ background:rgba(178,74,52,.22); border-color:var(--wrong-dk); }
+  .fb-title{ font-family:var(--display); font-weight:700; font-size:18px; display:flex; align-items:center; gap:10px; margin-bottom:5px; }
+  .footer.correct .fb-title{ color:var(--correct); } .footer.wrong .fb-title{ color:var(--wrong); }
+  .fb-sub{ font-size:15px; margin-bottom:14px; color:var(--text); }
+  .spk-btn{ border:none; background:rgba(106,155,216,.18); color:var(--lapis); width:34px; height:34px; border-radius:50%; font-size:16px; cursor:pointer; flex-shrink:0; }
+
+  /* ---------- End ---------- */
+  .end{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:30px; }
+  .end .trophy{ font-size:84px; color:var(--gold); text-shadow:0 0 34px rgba(224,181,82,.4); margin-bottom:12px; }
+  .end h2{ font-family:var(--display); font-size:26px; font-weight:700; margin-bottom:8px; }
+  .end p{ color:var(--muted); font-style:italic; margin-bottom:8px; }
+  .end .rewards{ display:flex; gap:14px; margin:22px 0 28px; }
+  .reward-card{ border:1px solid var(--gold2); border-radius:14px; padding:12px 22px; font-family:var(--display); font-weight:700; color:var(--gold); font-size:20px; }
+  .reward-card small{ display:block; font-size:10px; letter-spacing:1.5px; color:var(--muted); margin-bottom:2px; }
+
+  /* ---------- FAB + chart ---------- */
+  .fab{
+    position:fixed; bottom:84px; right:max(20px, calc(50% - 220px)); z-index:20;
+    width:54px; height:54px; border-radius:50%; border:1px solid var(--gold2); cursor:pointer;
+    background:var(--card2); color:var(--gold); font-size:22px; box-shadow:0 4px 16px rgba(0,0,0,.4);
+  }
+  .fab-fb{ bottom:20px; border-color:var(--lapis); color:var(--lapis); }
+  .fb-area{ width:100%; min-height:130px; background:var(--card); border:1px solid var(--line); border-radius:12px; color:var(--text); font-family:var(--body); font-size:16px; padding:12px; resize:vertical; outline:none; }
+  .fb-area:focus{ border-color:var(--gold); }
+  .fab::before{
+    content:attr(data-tip); position:absolute; right:64px; top:50%; transform:translateY(-50%);
+    background:#000; color:var(--text); padding:7px 11px; border-radius:8px; font-family:var(--body);
+    font-size:13px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .15s;
+  }
+  .fab:hover::before{ opacity:1; }
+  .modal-bg{ position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:30; display:flex; align-items:flex-end; justify-content:center; }
+  .modal{ background:var(--panel); width:100%; max-width:480px; max-height:85vh; border-radius:20px 20px 0 0; display:flex; flex-direction:column; border-top:1px solid var(--line); }
+  .modal-head{ padding:22px 22px 12px; border-bottom:1px solid var(--line); }
+  .modal-body{ overflow-y:auto; -webkit-overflow-scrolling:touch; padding:16px 22px; }
+  .modal-foot{ padding:12px 22px 18px; border-top:1px solid var(--line); }
+  .modal h3{ font-family:var(--display); font-size:20px; font-weight:700; margin-bottom:4px; }
+  .modal .sub{ color:var(--muted); font-style:italic; font-size:14px; }
+  .chart{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .chart .row{ display:flex; align-items:center; gap:10px; border:1px solid var(--line); border-radius:12px; padding:8px 10px; background:var(--card); }
+  .chart .g{ font-size:32px; width:42px; text-align:center; flex-shrink:0; color:var(--gold); }
+  .chart .meta{ min-width:0; } .chart .meta b{ font-size:15px; } .chart .meta span{ display:block; font-size:12px; color:var(--muted); }
+  .chart .spk-btn{ margin-left:auto; }
+  .close-modal{ display:block; width:100%; padding:13px; border:1px solid var(--line); background:transparent; border-radius:12px; font-family:var(--display); letter-spacing:1px; color:var(--text); cursor:pointer; font-size:14px; text-transform:uppercase; }
+  .hidden{ display:none !important; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<button class="fab hidden" id="fab" title="Reference chart" data-tip="Reference chart">☰</button>
+<button class="fab fab-fb hidden" id="fbFab" title="Send feedback" data-tip="Send feedback">✉</button>
+
+<script>
+/* =====================================================================
+   MetaLingo — a trainer for ancient scripts.
+   Access is soft-gated by a beta code (see ACCESS_CODE below).
+   The lesson engine is data-driven: a language is one COURSE object.
+   ===================================================================== */
+const ACCESS_CODE = "HORUS2026";   // <-- share this with beta testers (case-insensitive)
+const FEEDBACK_EMAIL = "wwitt003@gmail.com";   // <-- feedback button emails you here
+
+const COURSES = [
+  {
+    id:"egyptian", name:"Egyptian Hieroglyphs", subtitle:"The alphabet of the pharaohs",
+    icon:"𓂀", color:"linear-gradient(145deg,#d9b25a,#b07f2e)", fontClass:"glyph", item:"sign",
+    soundPrompt:"What sound does this sign make?", meaningPrompt:"What does this sign depict?",
+    signs:[
+      { g:"𓄿", tr:"Ꜣ", say:"glottal 'ah'",       depict:"Egyptian vulture", spk:"ah" },
+      { g:"𓇋", tr:"i", say:"'ee' / 'y'",          depict:"flowering reed",   spk:"ee" },
+      { g:"𓇌", tr:"y", say:"'y'",                 depict:"two reeds",        spk:"ee" },
+      { g:"𓂝", tr:"ꜥ", say:"guttural 'a' (ayin)", depict:"forearm",          spk:"aah" },
+      { g:"𓅱", tr:"w", say:"'w' / 'oo'",          depict:"quail chick",      spk:"oo" },
+      { g:"𓃀", tr:"b", say:"'b'",                 depict:"foot & leg",       spk:"beh" },
+      { g:"𓊪", tr:"p", say:"'p'",                 depict:"reed stool",       spk:"peh" },
+      { g:"𓆑", tr:"f", say:"'f'",                 depict:"horned viper",     spk:"feh" },
+      { g:"𓅓", tr:"m", say:"'m'",                 depict:"owl",              spk:"em" },
+      { g:"𓈖", tr:"n", say:"'n'",                 depict:"ripple of water",  spk:"en" },
+      { g:"𓂋", tr:"r", say:"'r'",                 depict:"mouth",            spk:"er" },
+      { g:"𓉔", tr:"h", say:"'h'",                 depict:"reed shelter",     spk:"heh" },
+      { g:"𓎛", tr:"ḥ", say:"emphatic 'h'",        depict:"twisted flax",     spk:"hah" },
+      { g:"𓐍", tr:"ḫ", say:"'ch' in loch",        depict:"placenta / sieve", spk:"kh" },
+      { g:"𓄡", tr:"ẖ", say:"softer 'kh'",         depict:"animal's belly",   spk:"kh" },
+      { g:"𓊃", tr:"z", say:"'s' / 'z'",           depict:"door bolt",        spk:"zeh" },
+      { g:"𓋴", tr:"s", say:"'s'",                 depict:"folded cloth",     spk:"ess" },
+      { g:"𓈙", tr:"š", say:"'sh'",                depict:"garden pool",      spk:"sh" },
+      { g:"𓈎", tr:"q", say:"deep 'k' (q)",        depict:"hill slope",       spk:"kuh" },
+      { g:"𓎡", tr:"k", say:"'k'",                 depict:"basket w/ handle", spk:"keh" },
+      { g:"𓎼", tr:"g", say:"hard 'g'",            depict:"jar stand",        spk:"geh" },
+      { g:"𓏏", tr:"t", say:"'t'",                 depict:"loaf of bread",    spk:"teh" },
+      { g:"𓍿", tr:"ṯ", say:"'ch' / 'tj'",         depict:"tethering rope",   spk:"ch" },
+      { g:"𓂧", tr:"d", say:"'d'",                 depict:"hand",             spk:"deh" },
+      { g:"𓆓", tr:"ḏ", say:"'dj' / 'j'",          depict:"cobra",            spk:"j" },
+    ],
+    words:[
+      { tiles:["𓊪","𓂋"],           tr:"pr",    meaning:"house",             spk:"pare" },
+      { tiles:["𓂋","𓈖"],           tr:"rn",    meaning:"name",              spk:"ren" },
+      { tiles:["𓈖","𓃀"],           tr:"nb",    meaning:"lord",              spk:"neb" },
+      { tiles:["𓇋","𓃀"],           tr:"ib",    meaning:"heart",             spk:"eeb" },
+      { tiles:["𓋴","𓈖"],           tr:"sn",    meaning:"brother",           spk:"sen" },
+      { tiles:["𓎡","𓄿"],           tr:"kꜣ",    meaning:"spirit (the Ka)",   spk:"kah" },
+      { tiles:["𓃀","𓄿"],           tr:"bꜣ",    meaning:"soul (the Ba)",     spk:"bah" },
+      { tiles:["𓈖","𓆑","𓂋"],       tr:"nfr",   meaning:"good / beautiful",  spk:"neh fer" },
+      { tiles:["𓅓","𓅱","𓏏"],       tr:"mwt",   meaning:"mother",            spk:"moot" },
+      { tiles:["𓂝","𓈖","𓐍"],       tr:"ꜥnḫ",   meaning:"life (the ankh)",   spk:"ankh" },
+      { tiles:["𓐍","𓊪","𓂋"],       tr:"ḫpr",   meaning:"to become",         spk:"kheh per" },
+      { tiles:["𓅓","𓄿","𓂝","𓏏"],   tr:"mꜣꜥt",  meaning:"truth & order (Maat)", spk:"mah aht" },
+    ]
+  },
+  {
+    id:"runes", name:"Elder Futhark Runes", subtitle:"The Norse & Viking alphabet",
+    icon:"ᚠ", color:"linear-gradient(145deg,#8fa4bd,#5a6f8c)", fontClass:"rune", item:"rune",
+    soundPrompt:"What sound does this rune make?", meaningPrompt:"What is this rune's name & meaning?",
+    signs:[
+      { g:"ᚠ", tr:"f", say:"'f'",          depict:"Fehu — wealth",      spk:"feh" },
+      { g:"ᚢ", tr:"u", say:"'oo'",         depict:"Uruz — wild ox",     spk:"oo" },
+      { g:"ᚦ", tr:"þ", say:"'th' (thorn)", depict:"Thurisaz — giant",   spk:"th" },
+      { g:"ᚨ", tr:"a", say:"'a'",          depict:"Ansuz — god / Odin", spk:"ah" },
+      { g:"ᚱ", tr:"r", say:"'r'",          depict:"Raido — journey",    spk:"er" },
+      { g:"ᚲ", tr:"k", say:"'k'",          depict:"Kaunan — torch",     spk:"keh" },
+      { g:"ᚷ", tr:"g", say:"'g'",          depict:"Gebo — gift",        spk:"geh" },
+      { g:"ᚹ", tr:"w", say:"'w'",          depict:"Wunjo — joy",        spk:"weh" },
+      { g:"ᚺ", tr:"h", say:"'h'",          depict:"Hagalaz — hail",     spk:"heh" },
+      { g:"ᚾ", tr:"n", say:"'n'",          depict:"Naudiz — need",      spk:"en" },
+      { g:"ᛁ", tr:"i", say:"'ee'",         depict:"Isaz — ice",         spk:"ee" },
+      { g:"ᛃ", tr:"j", say:"'y'",          depict:"Jera — harvest",     spk:"yeh" },
+      { g:"ᛇ", tr:"ï", say:"'ay' / 'ï'",   depict:"Eihwaz — yew tree",  spk:"ay" },
+      { g:"ᛈ", tr:"p", say:"'p'",          depict:"Perthro — mystery",  spk:"peh" },
+      { g:"ᛉ", tr:"z", say:"'z' (final R)",depict:"Algiz — protection", spk:"zeh" },
+      { g:"ᛊ", tr:"s", say:"'s'",          depict:"Sowilo — sun",       spk:"ess" },
+      { g:"ᛏ", tr:"t", say:"'t'",          depict:"Tiwaz — the god Tyr",spk:"teh" },
+      { g:"ᛒ", tr:"b", say:"'b'",          depict:"Berkanan — birch",   spk:"beh" },
+      { g:"ᛖ", tr:"e", say:"'e'",          depict:"Ehwaz — horse",      spk:"eh" },
+      { g:"ᛗ", tr:"m", say:"'m'",          depict:"Mannaz — human",     spk:"em" },
+      { g:"ᛚ", tr:"l", say:"'l'",          depict:"Laguz — water",      spk:"el" },
+      { g:"ᛜ", tr:"ŋ", say:"'ng'",         depict:"Ingwaz — the god Ing",spk:"ng" },
+      { g:"ᛟ", tr:"o", say:"'o'",          depict:"Othala — heritage",  spk:"oh" },
+      { g:"ᛞ", tr:"d", say:"'d'",          depict:"Dagaz — day / dawn", spk:"deh" },
+    ]
+  },
+  {
+    id:"greek", name:"Ancient Greek", subtitle:"Language of philosophers & myths",
+    icon:"Ω", color:"linear-gradient(145deg,#8db4c9,#4d7f95)", fontClass:"greek", item:"letter",
+    soundPrompt:"What sound does this letter make?", meaningPrompt:"What is this letter's name?",
+    signs:[
+      { g:"α", tr:"a",  say:"'a'",           depict:"Alpha",   spk:"ah" },
+      { g:"β", tr:"b",  say:"'b'",           depict:"Beta",    spk:"beh" },
+      { g:"γ", tr:"g",  say:"'g'",           depict:"Gamma",   spk:"gah" },
+      { g:"δ", tr:"d",  say:"'d'",           depict:"Delta",   spk:"deh" },
+      { g:"ε", tr:"e",  say:"'e' (short)",   depict:"Epsilon", spk:"eh" },
+      { g:"ζ", tr:"z",  say:"'z' / 'zd'",    depict:"Zeta",    spk:"zeh" },
+      { g:"η", tr:"ē",  say:"'e' (long, ay)",depict:"Eta",     spk:"ay" },
+      { g:"θ", tr:"th", say:"'th'",          depict:"Theta",   spk:"theh" },
+      { g:"ι", tr:"i",  say:"'i' / 'ee'",    depict:"Iota",    spk:"ee" },
+      { g:"κ", tr:"k",  say:"'k'",           depict:"Kappa",   spk:"kah" },
+      { g:"λ", tr:"l",  say:"'l'",           depict:"Lambda",  spk:"leh" },
+      { g:"μ", tr:"m",  say:"'m'",           depict:"Mu",      spk:"moo" },
+      { g:"ν", tr:"n",  say:"'n'",           depict:"Nu",      spk:"noo" },
+      { g:"ξ", tr:"x",  say:"'x' (ks)",      depict:"Xi",      spk:"ksee" },
+      { g:"ο", tr:"o",  say:"'o' (short)",   depict:"Omicron", spk:"oh" },
+      { g:"π", tr:"p",  say:"'p'",           depict:"Pi",      spk:"pee" },
+      { g:"ρ", tr:"r",  say:"'r'",           depict:"Rho",     spk:"roh" },
+      { g:"σ", tr:"s",  say:"'s'",           depict:"Sigma",   spk:"ess" },
+      { g:"τ", tr:"t",  say:"'t'",           depict:"Tau",     spk:"tah" },
+      { g:"υ", tr:"u",  say:"'u' / 'ü'",     depict:"Upsilon", spk:"oo" },
+      { g:"φ", tr:"ph", say:"'ph' / 'f'",    depict:"Phi",     spk:"fee" },
+      { g:"χ", tr:"ch", say:"'ch' (kh)",     depict:"Chi",     spk:"khee" },
+      { g:"ψ", tr:"ps", say:"'ps'",          depict:"Psi",     spk:"psee" },
+      { g:"ω", tr:"ō",  say:"'o' (long)",    depict:"Omega",   spk:"oh" },
+    ]
+  },
+  {
+    id:"sumerian", name:"Sumerian Cuneiform", subtitle:"The oldest writing on Earth",
+    icon:"𒀭", color:"linear-gradient(145deg,#c7a98a,#8f6f52)", fontClass:"cune", item:"sign",
+    soundPrompt:"How is this sign read?", meaningPrompt:"What does this sign mean?",
+    signs:[
+      { g:"𒀭", tr:"an",    say:"an",    depict:"sky / heaven / god",    spk:"ahn" },
+      { g:"𒆠", tr:"ki",    say:"ki",    depict:"earth / place",         spk:"kee" },
+      { g:"𒈗", tr:"lugal", say:"lugal", depict:"king",                  spk:"loo gahl" },
+      { g:"𒂍", tr:"e",     say:"e",     depict:"house / temple",        spk:"eh" },
+      { g:"𒇽", tr:"lu",    say:"lu",    depict:"man / person",          spk:"loo" },
+      { g:"𒊩", tr:"munus", say:"munus", depict:"woman",                 spk:"moo noos" },
+      { g:"𒃻", tr:"ninda", say:"ninda", depict:"bread / food",          spk:"nin dah" },
+      { g:"𒀀", tr:"a",     say:"a",     depict:"water",                 spk:"ah" },
+      { g:"𒌓", tr:"ud",    say:"ud",    depict:"sun / day / light",     spk:"ood" },
+      { g:"𒆳", tr:"kur",   say:"kur",   depict:"mountain / foreign land",spk:"koor" },
+      { g:"𒃲", tr:"gal",   say:"gal",   depict:"big / great",           spk:"gahl" },
+      { g:"𒌉", tr:"dumu",  say:"dumu",  depict:"child / son",           spk:"doo moo" },
+      { g:"𒅆", tr:"igi",   say:"igi",   depict:"eye / face",            spk:"ee gee" },
+      { g:"𒅗", tr:"ka",    say:"ka",    depict:"mouth",                 spk:"kah" },
+    ]
+  }
+];
+
+/* Roadmap teasers shown but not yet playable. */
+const SOON = [
+  { icon:"𓊃", name:"Coptic", sub:"The last stage of Egyptian" },
+  { icon:"ᚔ", name:"Ogham", sub:"The Celtic tree-alphabet" },
+];
+
+/* ---------------- Units & lessons ---------------- */
+function unitsFor(course){
+  const units=[];
+  const aLessons=[];
+  for(let i=0;i<course.signs.length;i+=5){
+    const idx=[]; for(let j=i;j<Math.min(i+5,course.signs.length);j++) idx.push(j);
+    aLessons.push({ kind:"signs", idx });
+  }
+  units.push({ name:"The Alphabet", count:course.signs.length, lessons:aLessons });
+  if(course.words && course.words.length){
+    const wLessons=[];
+    for(let i=0;i<course.words.length;i+=4){
+      const idx=[]; for(let j=i;j<Math.min(i+4,course.words.length);j++) idx.push(j);
+      wLessons.push({ kind:"words", idx });
+    }
+    units.push({ name:"First Words", count:course.words.length, lessons:wLessons });
+  }
+  // flatten with global indexes for progress/locking
+  let g=0;
+  units.forEach(u=> u.lessons.forEach((L,li)=>{ L.gid=g++; L.name=(L.kind==="words"?"Words ":"Lesson ")+(li+1); }));
+  return units;
+}
+function flatLessons(units){ return units.flatMap(u=>u.lessons); }
+
+/* ---------------- Persistent state ---------------- */
+const DEFAULT = { xp:0, streak:0, lastDay:null, courses:{} };
+let S = load();
+function load(){
+  try { return Object.assign({}, DEFAULT, JSON.parse(localStorage.getItem("metalingo")||"{}")); }
+  catch(e){ return Object.assign({}, DEFAULT); }
+}
+function save(){ localStorage.setItem("metalingo", JSON.stringify(S)); }
+function today(){ const d=new Date(); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+function bumpStreak(){
+  const t=today(); if(S.lastDay===t) return;
+  const y=new Date(Date.now()-86400000);
+  const yStr=y.getFullYear()+"-"+(y.getMonth()+1)+"-"+y.getDate();
+  S.streak=(S.lastDay===yStr)?S.streak+1:1; S.lastDay=t;
+}
+function cstate(id){ if(!S.courses[id]) S.courses[id]={done:{},mastery:{}}; return S.courses[id]; }
+
+/* ---------------- Audio ---------------- */
+const canSpeak = "speechSynthesis" in window;
+function speak(o){
+  if(!canSpeak) return;
+  const u=new SpeechSynthesisUtterance(o.spk||o.tr||"");
+  u.rate=0.75; u.lang="en-US";
+  window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+}
+
+/* ---------------- Helpers ---------------- */
+const app=document.getElementById("app"); const fab=document.getElementById("fab"); const fbFab=document.getElementById("fbFab");
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function pick(arr,n,exclude){ return shuffle(arr.filter(x=>x!==exclude)).slice(0,n); }
+
+let CUR=null, UNITS=[], LESSONS=[];
+
+/* =====================================================================
+   ACCESS GATE
+   ===================================================================== */
+function renderGate(){
+  fab.classList.add("hidden"); fbFab.classList.add("hidden");
+  app.innerHTML=`
+    <div class="gate">
+      <div class="gate-mark glyph">𓂀</div>
+      <div class="wordmark">METALINGO</div>
+      <div class="gate-tag">Read the ancient world</div>
+      <div class="gate-box">
+        <div class="gate-label">Beta access code</div>
+        <input id="code" class="gate-input" placeholder="enter code" autocomplete="off" autocapitalize="characters">
+        <button class="btn-gold" id="unlock">Unlock</button>
+        <div class="gate-err" id="err"></div>
+      </div>
+      <div class="gate-note">Private beta · invite only</div>
+    </div>`;
+  const go=()=>{
+    const v=document.getElementById("code").value.trim().toUpperCase();
+    if(v===ACCESS_CODE){ localStorage.setItem("metalingo_access","ok"); renderCourses(); }
+    else document.getElementById("err").textContent="Incorrect code — try again.";
+  };
+  document.getElementById("unlock").onclick=go;
+  const inp=document.getElementById("code");
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter") go(); });
+  inp.focus();
+}
+
+/* =====================================================================
+   COURSE PICKER
+   ===================================================================== */
+function renderCourses(){
+  CUR=null; fab.classList.add("hidden"); fbFab.classList.remove("hidden");
+  const cards=COURSES.map(c=>{
+    const L=flatLessons(unitsFor(c)); const done=Object.keys(cstate(c.id).done).length;
+    const pct=Math.round(done/L.length*100);
+    return `<button class="course-card" data-id="${c.id}">
+        <div class="course-icon ${c.fontClass}" style="background:${c.color}">${c.icon}</div>
+        <div class="course-body">
+          <b>${c.name}</b><span>${c.subtitle}</span>
+          <div class="course-bar"><div style="width:${pct}%"></div></div>
+        </div>
+      </button>`;
+  }).join("");
+  const soon=SOON.map(s=>`
+      <button class="course-card soon">
+        <div class="course-icon glyph" style="background:#3a3350">${s.icon}</div>
+        <div class="course-body"><b>${s.name}</b><span>${s.sub}</span></div>
+        <span class="pill">SOON</span>
+      </button>`).join("");
+  app.innerHTML=`
+    <div class="topbar">
+      <div class="stat streak"><span class="icon">🔥</span>${S.streak}</div>
+      <div class="stat xp"><span class="icon">✦</span>${S.xp}</div>
+    </div>
+    <div class="picker">
+      <div class="brand">METALINGO</div>
+      <h1>Choose a Script</h1>
+      <div class="sub">Your streak carries across every language.</div>
+      ${cards}${soon}
+    </div>`;
+  app.querySelectorAll(".course-card[data-id]").forEach(b=> b.onclick=()=> openCourse(COURSES.find(c=>c.id===b.dataset.id)));
+}
+function openCourse(course){ CUR=course; UNITS=unitsFor(course); LESSONS=flatLessons(UNITS); fab.classList.remove("hidden"); renderHome(); }
+
+/* =====================================================================
+   COURSE HOME
+   ===================================================================== */
+function renderHome(){
+  const st=cstate(CUR.id);
+  const doneCount=Object.keys(st.done).length;
+  const dueCount=CUR.signs.filter((_,i)=> (st.mastery[i]||0)<2 && wasSeen(i)).length;
+  let unitsHtml="";
+  UNITS.forEach(u=>{
+    unitsHtml+=`<div class="unit-h"><b>${u.name}</b><div class="line"></div><b>${u.count}</b></div><div class="path">`;
+    u.lessons.forEach(L=>{
+      const done=st.done[L.gid]; const locked=L.gid>0 && !st.done[L.gid-1];
+      const firstGlyph = L.kind==="words" ? CUR.words[L.idx[0]].tiles.join("") : CUR.signs[L.idx[0]].g;
+      const sub = L.kind==="words" ? "Build real words" : (L.idx.length+" signs");
+      unitsHtml+=`<button class="step ${done?'done':locked?'locked':''}" ${locked?'disabled':''} data-gid="${L.gid}">
+          <div class="medal ${CUR.fontClass}">${firstGlyph}</div>
+          <div class="stbody"><b>${L.name}</b><span>${sub}</span></div>
+          <div class="stat-icon">${done?'★':locked?'🔒':'▸'}</div>
+        </button>`;
+    });
+    unitsHtml+=`</div>`;
+  });
+  app.innerHTML=`
+    <div class="topbar">
+      <button class="backbtn" id="back">‹</button>
+      <div class="stat streak"><span class="icon">🔥</span>${S.streak}</div>
+      <div class="stat xp"><span class="icon">✦</span>${S.xp}</div>
+      <div class="prog">${doneCount}/${LESSONS.length}</div>
+    </div>
+    <div class="home">
+      <h1>${CUR.name}</h1>
+      <div class="sub">${CUR.subtitle}</div>
+      ${unitsHtml}
+      ${dueCount>0?`<button class="btn-outline review-btn" id="reviewBtn">↻ Review ${dueCount} sign${dueCount>1?'s':''}</button>`:``}
+    </div>`;
+  document.getElementById("back").onclick=renderCourses;
+  app.querySelectorAll(".step[data-gid]").forEach(b=>{ if(!b.disabled) b.onclick=()=>startLesson(+b.dataset.gid); });
+  const rb=document.getElementById("reviewBtn"); if(rb) rb.onclick=startReview;
+}
+function wasSeen(i){ const st=cstate(CUR.id); return UNITS[0].lessons.some(L=> st.done[L.gid] && L.idx.includes(i)); }
+
+/* =====================================================================
+   LESSON ENGINE
+   ===================================================================== */
+let Q=[], qi=0, lessonId=null, sessionXP=0, isReview=false;
+
+function buildQuestions(L){
+  let qs=[];
+  if(L.kind==="signs"){
+    L.idx.forEach(i=> qs.push(makeSignQ(i, Math.random()<0.5?"sound":"depict")));
+    L.idx.forEach(i=> qs.push(makeSignQ(i,"reverse")));
+  } else {
+    L.idx.forEach(i=> qs.push(makeWordQ(i,"build")));
+    L.idx.forEach(i=> qs.push(makeWordQ(i, Math.random()<0.5?"meaning":"wreverse")));
+  }
+  return shuffle(qs);
+}
+function makeSignQ(i,type){
+  const s=CUR.signs[i]; const kind="signs";
+  if(type==="reverse"){
+    const opts=shuffle([s,...pick(CUR.signs,3,s)]);
+    return { kind,type,i, prompt:`Which ${CUR.item} matches “${s.say}”?`, hint:s.depict, glyphOpts:true,
+      options:opts.map(o=>({label:o.g, correct:o===s})) };
+  }
+  if(type==="depict"){
+    const opts=shuffle([s,...pick(CUR.signs,3,s)]);
+    return { kind,type,i, prompt:CUR.meaningPrompt, glyph:s.g, options:opts.map(o=>({label:o.depict, correct:o===s})) };
+  }
+  const opts=shuffle([s,...pick(CUR.signs,3,s)]);
+  return { kind,type,i, prompt:CUR.soundPrompt, glyph:s.g, options:opts.map(o=>({label:o.say, correct:o===s})) };
+}
+function makeWordQ(i,type){
+  const w=CUR.words[i]; const kind="words"; const wg=w.tiles.join("");
+  if(type==="meaning"){
+    const opts=shuffle([w,...pick(CUR.words,3,w)]);
+    return { kind,type,i, prompt:"What does this word mean?", glyph:wg, options:opts.map(o=>({label:o.meaning, correct:o===w})) };
+  }
+  if(type==="wreverse"){
+    const opts=shuffle([w,...pick(CUR.words,3,w)]);
+    return { kind,type,i, prompt:`Which word means “${w.meaning}”?`, hint:w.tr, glyphOpts:true,
+      options:opts.map(o=>({label:o.tiles.join(""), correct:o===w})) };
+  }
+  // build: tiles = correct signs + 2 distractors
+  const distract=pick(CUR.signs.map(s=>s.g).filter(g=>!w.tiles.includes(g)),2);
+  return { kind,type:"build",i, prompt:`Spell the word for “${w.meaning}”`, target:w.tiles.slice(), bank:shuffle(w.tiles.concat(distract)) };
+}
+function startLesson(gid){ const L=LESSONS.find(x=>x.gid===gid); lessonId=gid; isReview=false; sessionXP=0; qi=0; Q=buildQuestions(L); renderQuestion(); }
+function startReview(){
+  isReview=true; lessonId=null; sessionXP=0; qi=0;
+  const st=cstate(CUR.id);
+  const due=CUR.signs.map((_,i)=>i).filter(i=>(st.mastery[i]||0)<2 && wasSeen(i));
+  Q=shuffle(due).map(i=>makeSignQ(i, shuffle(["sound","depict","reverse"])[0]));
+  if(!Q.length){ renderHome(); return; } renderQuestion();
+}
+
+/* ---------- Render a question ---------- */
+let selected=null, answered=false;
+function renderQuestion(){
+  if(qi>=Q.length){ renderEnd(); return; }
+  const q=Q[qi]; selected=null; answered=false;
+  const progress=Math.round((qi/Q.length)*100);
+  const top=`<div class="lesson-top"><button class="close" id="close">✕</button><div class="bar"><div style="width:${progress}%"></div></div></div>`;
+  if(q.type==="build"){
+    app.innerHTML=`<div class="lesson">${top}
+      <div class="q-prompt">${q.prompt}</div>
+      <div class="q-hint">Tap the tiles in order.</div>
+      <div class="build-answer" id="answer"></div>
+      <div class="build-bank" id="bank"></div>
+      <div class="spacer"></div>
+      <div class="footer" id="footer"><button class="btn-gold" id="check" disabled>Check</button></div>
+    </div>`;
+    q._built=[]; q._used=new Array(q.bank.length).fill(false);
+    drawBuilder(q);
+  } else {
+    app.innerHTML=`<div class="lesson">${top}
+      <div class="q-prompt">${q.prompt}</div>
+      ${q.hint?`<div class="q-hint">Hint: ${q.hint}</div>`:`<div style="height:8px"></div>`}
+      ${q.glyph?`<div class="big-glyph ${CUR.fontClass}">${q.glyph}</div>`:``}
+      <div class="options ${q.glyphOpts?'grid':''}" id="opts"></div>
+      <div class="spacer"></div>
+      <div class="footer" id="footer"><button class="btn-gold" id="check" disabled>Check</button></div>
+    </div>`;
+    const optsEl=document.getElementById("opts");
+    q.options.forEach((o,idx)=>{
+      const b=document.createElement("button");
+      b.className="opt "+(q.glyphOpts?"glyphopt "+CUR.fontClass:"");
+      b.textContent=o.label;
+      b.onclick=()=>{ if(answered) return; selected=idx;
+        [...optsEl.children].forEach(c=>c.classList.remove("selected")); b.classList.add("selected");
+        document.getElementById("check").disabled=false; };
+      optsEl.appendChild(b);
+    });
+    if(q.glyph && canSpeak && q.kind==="words") speak(CUR.words[q.i]);
+  }
+  document.getElementById("close").onclick=()=>{ if(confirm("Quit this lesson? Progress in it will be lost.")) renderHome(); };
+  document.getElementById("check").onclick=onCheck;
+}
+function drawBuilder(q){
+  const ans=document.getElementById("answer");
+  ans.innerHTML = q._built.length
+    ? q._built.map((bi,pos)=>`<button class="tile small ${CUR.fontClass}" data-pos="${pos}">${q.bank[bi]}</button>`).join("")
+    : `<span class="build-placeholder">Tap tiles below to build the word…</span>`;
+  const bank=document.getElementById("bank");
+  bank.innerHTML=q.bank.map((g,bi)=>`<button class="tile ${CUR.fontClass}" data-bi="${bi}" ${q._used[bi]?'disabled':''}>${g}</button>`).join("");
+  if(!answered){
+    ans.querySelectorAll("[data-pos]").forEach(el=> el.onclick=()=>{ const p=+el.dataset.pos; q._used[q._built[p]]=false; q._built.splice(p,1); drawBuilder(q); });
+    bank.querySelectorAll("[data-bi]").forEach(el=> el.onclick=()=>{ const bi=+el.dataset.bi; if(q._used[bi]) return; q._used[bi]=true; q._built.push(bi); drawBuilder(q); });
+  }
+  document.getElementById("check").disabled = q._built.length!==q.target.length;
+}
+
+function onCheck(){
+  const q=Q[qi];
+  if(!answered){
+    answered=true;
+    let correct;
+    if(q.type==="build"){
+      correct = q._built.map(bi=>q.bank[bi]).join("")===q.target.join("");
+      document.querySelectorAll("#bank .tile,#answer .tile").forEach(t=>t.disabled=true);
+    } else {
+      correct=q.options[selected].correct;
+      const optsEl=document.getElementById("opts");
+      [...optsEl.children].forEach((c,idx)=>{ c.disabled=true;
+        if(q.options[idx].correct) c.classList.add("correct");
+        else if(idx===selected) c.classList.add("wrong"); });
+    }
+    if(q.kind==="signs"){ const st=cstate(CUR.id); const m=st.mastery[q.i]||0; st.mastery[q.i]=correct?Math.min(3,m+1):Math.max(0,m-1); }
+    if(correct) sessionXP+=10; else Q.push(q.kind==="words"?makeWordQ(q.i,"meaning"):makeSignQ(q.i,"sound"));
+    save();
+    // feedback
+    let gGlyph,line,speakObj;
+    if(q.kind==="words"){ const w=CUR.words[q.i]; gGlyph=w.tiles.join(""); line=`“${w.meaning}” &nbsp;·&nbsp; ${w.tr}`; speakObj=w; }
+    else { const s=CUR.signs[q.i]; gGlyph=s.g; line=`“${s.say}” &nbsp;·&nbsp; ${s.depict} &nbsp;(${s.tr})`; speakObj=s; }
+    const footer=document.getElementById("footer");
+    footer.className="footer "+(correct?"correct":"wrong");
+    footer.innerHTML=`
+      <div class="fb-title">${correct?"✔ Correct!":"✘ Correct answer"}
+        ${canSpeak?`<button class="spk-btn" id="fbspk" title="Hear it">🔊</button>`:``}</div>
+      <div class="fb-sub"><span class="${CUR.fontClass}" style="font-size:22px">${gGlyph}</span> &nbsp;=&nbsp; ${line}</div>
+      <button class="btn-gold" id="check">Continue</button>`;
+    if(canSpeak){ speak(speakObj); document.getElementById("fbspk").onclick=()=>speak(speakObj); }
+    document.getElementById("check").onclick=onCheck;
+  } else { qi++; renderQuestion(); }
+}
+
+/* =====================================================================
+   END SCREEN
+   ===================================================================== */
+function renderEnd(){
+  S.xp+=sessionXP; bumpStreak();
+  if(!isReview && lessonId!==null) cstate(CUR.id).done[lessonId]=true;
+  save();
+  app.innerHTML=`
+    <div class="end">
+      <div class="trophy ${CUR.fontClass}">${CUR.icon}</div>
+      <h2>${isReview?"Review Complete":"Lesson Complete"}</h2>
+      <p>${isReview?"Those signs are fresher now.":"Another piece of the ancient world, unlocked."}</p>
+      <div class="rewards">
+        <div class="reward-card"><small>XP EARNED</small>${sessionXP}</div>
+        <div class="reward-card"><small>DAY STREAK</small>${S.streak}</div>
+      </div>
+      <button class="btn-gold" id="cont">Continue</button>
+    </div>`;
+  document.getElementById("cont").onclick=renderHome;
+}
+
+/* =====================================================================
+   REFERENCE CHART
+   ===================================================================== */
+fab.onclick=openChart;
+function openChart(){
+  if(!CUR) return;
+  const rows=CUR.signs.map((s,i)=>`
+    <div class="row">
+      <div class="g ${CUR.fontClass}">${s.g}</div>
+      <div class="meta"><b>${s.say}</b><span>${s.depict} · ${s.tr}</span></div>
+      ${canSpeak?`<button class="spk-btn" data-i="${i}" title="Hear it">🔊</button>`:``}
+    </div>`).join("");
+  const bg=document.createElement("div"); bg.className="modal-bg";
+  bg.innerHTML=`<div class="modal">
+      <div class="modal-head"><h3>${CUR.name}</h3><div class="sub">${CUR.signs.length} signs${canSpeak?" · tap 🔊 to hear each":""}.</div></div>
+      <div class="modal-body"><div class="chart">${rows}</div></div>
+      <div class="modal-foot"><button class="close-modal">Close</button></div>
+    </div>`;
+  bg.onclick=e=>{ const spk=e.target.closest(".spk-btn"); if(spk){ speak(CUR.signs[+spk.dataset.i]); return; }
+    if(e.target===bg||e.target.classList.contains("close-modal")) bg.remove(); };
+  document.body.appendChild(bg);
+}
+
+/* =====================================================================
+   FEEDBACK
+   ===================================================================== */
+fbFab.onclick=openFeedback;
+function currentContext(){ return CUR ? ("Course: "+CUR.name) : "Screen: course list"; }
+function openFeedback(){
+  const bg=document.createElement("div"); bg.className="modal-bg";
+  bg.innerHTML=`<div class="modal">
+      <div class="modal-head"><h3>Send Feedback</h3><div class="sub">Tell us what's confusing, broken, or great.</div></div>
+      <div class="modal-body"><textarea id="fbtext" class="fb-area" placeholder="Type your feedback here…"></textarea></div>
+      <div class="modal-foot"><button class="btn-gold" id="fbsend">Send via email</button></div>
+    </div>`;
+  bg.onclick=e=>{ if(e.target===bg) bg.remove(); };
+  document.body.appendChild(bg);
+  const ta=document.getElementById("fbtext"); ta.focus();
+  document.getElementById("fbsend").onclick=()=>{
+    const t=ta.value.trim();
+    const subject=encodeURIComponent("MetaLingo beta feedback");
+    const body=encodeURIComponent((t||"(no message)")+"\n\n—\n"+currentContext()+"\nSent from MetaLingo beta");
+    window.location.href=`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`;
+    bg.remove();
+  };
+}
+
+/* ---------------- Boot ---------------- */
+if(localStorage.getItem("metalingo_access")==="ok"){ renderCourses(); } else { renderGate(); }
+</script>
+</body>
+</html>
