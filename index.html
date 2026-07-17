@@ -278,6 +278,15 @@ const COURSES = [
       { tiles:["𓆓","𓂧"],           tr:"ḏd",    meaning:"to speak",           spk:"jed" },
       { tiles:["𓎛","𓏏","𓊪"],       tr:"ḥtp",   meaning:"peace / offering",   spk:"heh tep" },
       { tiles:["𓂧","𓅱","𓄿"],       tr:"dwꜣ",   meaning:"to worship / praise",spk:"doo ah" },
+    ],
+    phrases:[
+      { words:["𓊃𓄿","𓂋𓂝"],   tr:"zꜣ rꜥ",   meaning:"Son of Ra (a royal title)",      spk:"zah rah" },
+      { words:["𓈖𓍿𓂋","𓈖𓆑𓂋"], tr:"nṯr nfr", meaning:"the perfect god (royal epithet)",spk:"net jer neh fer" },
+      { words:["𓈖𓃀","𓏏𓄿"],   tr:"nb tꜣ",   meaning:"lord of the land",               spk:"neb tah" },
+      { words:["𓊪𓂋","𓈖𓍿𓂋"], tr:"pr nṯr",  meaning:"house of the god (a temple)",     spk:"pare net jer" },
+      { words:["𓎛𓏏𓊪","𓈖𓍿𓂋"], tr:"ḥtp nṯr", meaning:"an offering to the god",         spk:"heh tep net jer" },
+      { words:["𓂋𓈖","𓈖𓆑𓂋"], tr:"rn nfr",  meaning:"a good name",                    spk:"ren neh fer" },
+      { words:["𓈖𓃀","𓂝𓈖𓐍"], tr:"nb ꜥnḫ",  meaning:"lord of life",                   spk:"neb ankh" },
     ]
   },
   {
@@ -461,9 +470,17 @@ function unitsFor(course){
     }
     units.push({ name:"First Words", count:course.words.length, lessons:wLessons });
   }
+  if(course.phrases && course.phrases.length){
+    const pLessons=[];
+    for(let i=0;i<course.phrases.length;i+=4){
+      const idx=[]; for(let j=i;j<Math.min(i+4,course.phrases.length);j++) idx.push(j);
+      pLessons.push({ kind:"phrases", idx });
+    }
+    units.push({ name:"Phrases", count:course.phrases.length, lessons:pLessons });
+  }
   // flatten with global indexes for progress/locking
   let g=0;
-  units.forEach(u=> u.lessons.forEach((L,li)=>{ L.gid=g++; L.name=(L.kind==="words"?"Words ":"Lesson ")+(li+1); }));
+  units.forEach(u=> u.lessons.forEach((L,li)=>{ L.gid=g++; L.name=(L.kind==="phrases"?"Phrase ":L.kind==="words"?"Words ":"Lesson ")+(li+1); }));
   return units;
 }
 function flatLessons(units){ return units.flatMap(u=>u.lessons); }
@@ -579,8 +596,8 @@ function renderHome(){
     unitsHtml+=`<div class="unit-h"><b>${u.name}</b><div class="line"></div><b>${u.count}</b></div><div class="path">`;
     u.lessons.forEach(L=>{
       const done=st.done[L.gid]; const locked=L.gid>0 && !st.done[L.gid-1];
-      const firstGlyph = L.kind==="words" ? CUR.words[L.idx[0]].tiles.join("") : CUR.signs[L.idx[0]].g;
-      const sub = L.kind==="words" ? "Build real words" : (L.idx.length+" signs");
+      const firstGlyph = L.kind==="phrases" ? CUR.phrases[L.idx[0]].words[0] : L.kind==="words" ? CUR.words[L.idx[0]].tiles.join("") : CUR.signs[L.idx[0]].g;
+      const sub = L.kind==="phrases" ? "Real phrases" : L.kind==="words" ? "Build real words" : (L.idx.length+" signs");
       unitsHtml+=`<button class="step ${done?'done':locked?'locked':''}" ${locked?'disabled':''} data-gid="${L.gid}">
           <div class="medal ${CUR.fontClass}">${firstGlyph}</div>
           <div class="stbody"><b>${L.name}</b><span>${sub}</span></div>
@@ -618,9 +635,12 @@ function buildQuestions(L){
   if(L.kind==="signs"){
     L.idx.forEach(i=> qs.push(makeSignQ(i, Math.random()<0.5?"sound":"depict")));
     L.idx.forEach(i=> qs.push(makeSignQ(i,"reverse")));
-  } else {
+  } else if(L.kind==="words"){
     L.idx.forEach(i=> qs.push(makeWordQ(i,"build")));
     L.idx.forEach(i=> qs.push(makeWordQ(i, Math.random()<0.5?"meaning":"wreverse")));
+  } else {
+    L.idx.forEach(i=> qs.push(makePhraseQ(i,"build")));
+    L.idx.forEach(i=> qs.push(makePhraseQ(i,"pmeaning")));
   }
   return shuffle(qs);
 }
@@ -653,6 +673,16 @@ function makeWordQ(i,type){
   const distract=pick(CUR.signs.map(s=>s.g).filter(g=>!w.tiles.includes(g)),2);
   return { kind,type:"build",i, prompt:`Spell the word for “${w.meaning}”`, target:w.tiles.slice(), bank:shuffle(w.tiles.concat(distract)) };
 }
+function makePhraseQ(i,type){
+  const p=CUR.phrases[i]; const kind="phrases"; const pg=p.words.join(" ");
+  if(type==="pmeaning"){
+    const opts=shuffle([p,...pick(CUR.phrases,3,p)]);
+    return { kind,type,i, prompt:"What does this phrase mean?", glyph:pg, options:opts.map(o=>({label:o.meaning, correct:o===p})) };
+  }
+  // build from whole-word tiles + 2 distractor words
+  const otherWords=CUR.words.map(w=>w.tiles.join("")).filter(g=>!p.words.includes(g));
+  return { kind,type:"build",i, prompt:`Build the phrase: “${p.meaning}”`, target:p.words.slice(), bank:shuffle(p.words.concat(pick(otherWords,2))) };
+}
 function startLesson(gid){ const L=LESSONS.find(x=>x.gid===gid); lessonId=gid; isReview=false; sessionXP=0; qi=0; Q=buildQuestions(L); renderQuestion(); }
 function startReview(){
   isReview=true; lessonId=null; sessionXP=0; qi=0;
@@ -684,7 +714,7 @@ function renderQuestion(){
     app.innerHTML=`<div class="lesson">${top}
       <div class="q-prompt">${q.prompt}</div>
       ${q.hint?`<div class="q-hint">Hint: ${q.hint}</div>`:`<div style="height:8px"></div>`}
-      ${q.glyph?`<div class="big-glyph ${CUR.fontClass}">${q.glyph}</div>`:``}
+      ${q.glyph?`<div class="big-glyph ${CUR.fontClass}" ${q.kind==="phrases"?'style="font-size:54px"':''}>${q.glyph}</div>`:``}
       <div class="options ${q.glyphOpts?'grid':''}" id="opts"></div>
       <div class="spacer"></div>
       <div class="footer" id="footer"><button class="btn-gold" id="check" disabled>Check</button></div>
@@ -699,7 +729,7 @@ function renderQuestion(){
         document.getElementById("check").disabled=false; };
       optsEl.appendChild(b);
     });
-    if(q.glyph && canSpeak && q.kind==="words") speak(CUR.words[q.i]);
+    if(q.glyph && canSpeak){ if(q.kind==="words") speak(CUR.words[q.i]); else if(q.kind==="phrases") speak(CUR.phrases[q.i]); }
   }
   document.getElementById("close").onclick=()=>{ if(confirm("Quit this lesson? Progress in it will be lost.")) renderHome(); };
   document.getElementById("check").onclick=onCheck;
@@ -724,7 +754,7 @@ function onCheck(){
     answered=true;
     let correct;
     if(q.type==="build"){
-      correct = q._built.map(bi=>q.bank[bi]).join("")===q.target.join("");
+      correct = q._built.map(bi=>q.bank[bi]).join("")===q.target.join("");
       document.querySelectorAll("#bank .tile,#answer .tile").forEach(t=>t.disabled=true);
     } else {
       correct=q.options[selected].correct;
@@ -734,11 +764,13 @@ function onCheck(){
         else if(idx===selected) c.classList.add("wrong"); });
     }
     if(q.kind==="signs"){ const st=cstate(CUR.id); const m=st.mastery[q.i]||0; st.mastery[q.i]=correct?Math.min(3,m+1):Math.max(0,m-1); }
-    if(correct) sessionXP+=10; else Q.push(q.kind==="words"?makeWordQ(q.i,"meaning"):makeSignQ(q.i,"sound"));
+    if(correct){ sessionXP+=10; }
+    else { Q.push(q.kind==="phrases"?makePhraseQ(q.i,"pmeaning"):q.kind==="words"?makeWordQ(q.i,"meaning"):makeSignQ(q.i,"sound")); }
     save();
     // feedback
     let gGlyph,line,speakObj;
-    if(q.kind==="words"){ const w=CUR.words[q.i]; gGlyph=w.tiles.join(""); line=`“${w.meaning}” &nbsp;·&nbsp; ${w.tr}`; speakObj=w; }
+    if(q.kind==="phrases"){ const p=CUR.phrases[q.i]; gGlyph=p.words.join(" "); line=`“${p.meaning}” &nbsp;·&nbsp; ${p.tr}`; speakObj=p; }
+    else if(q.kind==="words"){ const w=CUR.words[q.i]; gGlyph=w.tiles.join(""); line=`“${w.meaning}” &nbsp;·&nbsp; ${w.tr}`; speakObj=w; }
     else { const s=CUR.signs[q.i]; gGlyph=s.g; line=`“${s.say}” &nbsp;·&nbsp; ${s.depict} &nbsp;(${s.tr})`; speakObj=s; }
     const footer=document.getElementById("footer");
     footer.className="footer "+(correct?"correct":"wrong");
